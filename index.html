@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Miss Minette Adventure - Reading Comprehension Game</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; -webkit-tap-highlight-color: transparent; }
+  
+  body {
+    background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    min-height: 100vh;
+    color: #fff;
+    overflow-x: hidden;
+  }
+
+  #webgl-bg {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  .header {
+    text-align: center;
+    padding: 15px 10px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+    margin-bottom: 15px;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+
+  .header h1 {
+    font-size: 18px;
+    background: linear-gradient(135deg, #ff6b9d, #ffd93d, #6bcb77);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+  }
+
+  .header p {
+    font-size: 11px;
+    opacity: 0.8;
+    margin-top: 4px;
+    color: #b8c5d6;
+  }
+
+  /* HP BAR */
+  .hp-section {
+    background: rgba(0,0,0,0.3);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .hp-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+
+  .hp-label .monster-label { color: #ff6b9d; }
+  .hp-label .hero-label { color: #6bcb77; }
+
+  .hp-bar {
+    width: 100%;
+    height: 14px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 7px;
+    overflow: hidden;
+    margin-bottom: 8px;
+    position: relative;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .hp-fill {
+    height: 100%;
+    border-radius: 7px;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+  }
+
+  .hp-fill::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 50%;
+    background: rgba(255,255,255,0.2);
+    border-radius: 7px 7px 0 0;
+  }
+
+  .monster-fill { background: linear-gradient(90deg, #8b00ff, #ff006e); }
+  .hero-fill { background: linear-gradient(90deg, #6bcb77, #4d96ff); }
+
+  /* SCENE */
+  .scene-box {
+    background: rgba(255,255,255,0.08);
+    border-radius: 15px;
+    padding: 15px;
+    margin-bottom: 12px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.15);
+    min-height: 120px;
+  }
+
+  .scene-title {
+    font-size: 11px;
+    color: #ffd93d;
+    font-weight: 700;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .scene-text {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #e8eef5;
+  }
+
+  /* CHARACTERS */
+  .characters {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-end;
+    padding: 10px 0;
+    margin-bottom: 10px;
+    min-height: 90px;
+  }
+
+  .char {
+    text-align: center;
+    transition: transform 0.4s;
+    font-size: 42px;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+  }
+
+  .char.miss-minette { animation: float 2.5s ease-in-out infinite; }
+  .char.kapi { animation: float 2.5s ease-in-out infinite 0.3s; }
+  .char.puru { animation: float 2.5s ease-in-out infinite 0.6s; }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .char.shake { animation: shake 0.5s; }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px) rotate(-5deg); }
+    75% { transform: translateX(8px) rotate(5deg); }
+  }
+
+  .char.happy { animation: jump 0.6s; }
+  @keyframes jump {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-20px) scale(1.1); }
+  }
+
+  /* MONSTER */
+  .monster-display {
+    text-align: center;
+    padding: 15px;
+    margin-bottom: 12px;
+    transition: all 0.6s;
+  }
+
+  .monster-emoji {
+    font-size: 70px;
+    display: inline-block;
+    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    filter: drop-shadow(0 0 20px rgba(255,0,110,0.6));
+  }
+
+  .monster-emoji.angry { animation: monsterPulse 1s infinite; }
+  @keyframes monsterPulse {
+    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 20px rgba(255,0,110,0.6)); }
+    50% { transform: scale(1.1); filter: drop-shadow(0 0 40px rgba(255,0,110,1)); }
+  }
+
+  .monster-shrink { font-size: 30px !important; opacity: 0.6; }
+  .monster-big { font-size: 100px !important; }
+
+  /* QUESTION */
+  .question-box {
+    background: rgba(255,255,255,0.1);
+    border-radius: 15px;
+    padding: 18px;
+    margin-bottom: 12px;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+
+  .question-num {
+    font-size: 11px;
+    color: #6bcb77;
+    font-weight: 700;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+  }
+
+  .question-text {
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 15px;
+    font-weight: 500;
+  }
+
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .option-btn {
+    padding: 14px 16px;
+    background: rgba(255,255,255,0.08);
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    color: #fff;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .option-btn:active { transform: scale(0.97); }
+
+  .option-btn .opt-label {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  .option-btn.correct {
+    background: rgba(107, 203, 119, 0.25);
+    border-color: #6bcb77;
+    animation: pop 0.4s;
+  }
+
+  .option-btn.wrong {
+    background: rgba(255, 0, 110, 0.25);
+    border-color: #ff006e;
+    animation: shake 0.5s;
+  }
+
+  .option-btn:disabled { cursor: not-allowed; opacity: 0.7; }
+
+  @keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+
+  /* FEEDBACK */
+  .feedback {
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    display: none;
+    animation: slideUp 0.4s;
+  }
+
+  .feedback.show { display: block; }
+  .feedback.correct {
+    background: rgba(107, 203, 119, 0.2);
+    border-left: 4px solid #6bcb77;
+    color: #d4f5d4;
+  }
+  .feedback.wrong {
+    background: rgba(255, 0, 110, 0.2);
+    border-left: 4px solid #ff006e;
+    color: #ffd4e8;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* BUTTON */
+  .btn {
+    padding: 14px 20px;
+    border: none;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: inherit;
+    width: 100%;
+    margin-top: 8px;
+    letter-spacing: 0.5px;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #4d96ff, #6bcb77);
+    color: white;
+    box-shadow: 0 4px 15px rgba(77, 150, 255, 0.4);
+  }
+
+  .btn-primary:active { transform: scale(0.97); }
+
+  .btn-gold {
+    background: linear-gradient(135deg, #ffd93d, #ff9500);
+    color: #1a1a2e;
+    box-shadow: 0 4px 20px rgba(255, 217, 61, 0.5);
+  }
+
+  /* RESULT SCREEN */
+  .result-screen {
+    display: none;
+    text-align: center;
+    padding: 20px;
+  }
+
+  .result-screen.show { display: block; animation: fadeIn 0.6s; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .trophy-box {
+    font-size: 100px;
+    margin: 20px 0;
+    display: inline-block;
+    animation: trophySpin 2s ease-in-out infinite;
+    filter: drop-shadow(0 0 30px rgba(255, 217, 61, 0.8));
+  }
+
+  @keyframes trophySpin {
+    0%, 100% { transform: rotate(-5deg) scale(1); }
+    50% { transform: rotate(5deg) scale(1.1); }
+  }
+
+  .badge-container {
+    background: linear-gradient(135deg, #ffd93d, #ff9500, #ff6b9d);
+    padding: 4px;
+    border-radius: 20px;
+    margin: 15px auto;
+    max-width: 280px;
+    box-shadow: 0 10px 40px rgba(255, 217, 61, 0.4);
+  }
+
+  .badge-inner {
+    background: #1a1a2e;
+    border-radius: 17px;
+    padding: 20px 15px;
+  }
+
+  .badge-title {
+    font-size: 16px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ffd93d, #ff9500);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 5px;
+  }
+
+  .badge-subtitle {
+    font-size: 11px;
+    color: #b8c5d6;
+    margin-bottom: 10px;
+  }
+
+  .badge-stats {
+    font-size: 12px;
+    color: #6bcb77;
+    font-weight: 700;
+  }
+
+  .result-title {
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, #6bcb77, #4d96ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .result-subtitle {
+    font-size: 13px;
+    color: #b8c5d6;
+    line-height: 1.6;
+    margin-bottom: 15px;
+  }
+
+  /* INTRO SCREEN */
+  .intro-screen {
+    display: block;
+    text-align: center;
+    padding: 20px 10px;
+  }
+
+  .intro-screen.hide { display: none; }
+
+  .game-screen { display: none; }
+  .game-screen.show { display: block; }
+
+  .intro-heroes {
+    font-size: 55px;
+    margin: 15px 0;
+    letter-spacing: 10px;
+  }
+
+  .intro-title {
+    font-size: 20px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ff6b9d, #ffd93d);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 10px;
+    line-height: 1.3;
+  }
+
+  .intro-desc {
+    font-size: 13px;
+    color: #b8c5d6;
+    line-height: 1.7;
+    margin-bottom: 20px;
+    padding: 0 10px;
+  }
+
+  .intro-features {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .feature-chip {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    padding: 10px 5px;
+    font-size: 10px;
+    color: #b8c5d6;
+    text-align: center;
+  }
+
+  .feature-chip .icon { font-size: 20px; display: block; margin-bottom: 4px; }
+
+  .progress-dots {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    transition: all 0.3s;
+  }
+
+  .dot.active { background: #ffd93d; transform: scale(1.3); }
+  .dot.correct { background: #6bcb77; }
+  .dot.wrong { background: #ff006e; }
+
+  /* CONFETTI */
+  .confetti {
+    position: fixed;
+    width: 10px; height: 10px;
+    top: -10px;
+    z-index: 999;
+    animation: fall linear forwards;
+  }
+
+  @keyframes fall {
+    to { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+  }
+
+  /* RESTART */
+  .restart-section { margin-top: 15px; }
+
+  .footer-note {
+    text-align: center;
+    font-size: 10px;
+    color: #6c7a8a;
+    padding: 15px 0;
+    margin-top: auto;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="webgl-bg"></canvas>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <h1>🌊 Miss Minette Adventure</h1>
+    <p>The Attack of The Microplastic Monsters</p>
+  </div>
+
+  <!-- INTRO SCREEN -->
+  <div id="introScreen" class="intro-screen">
+    <div class="intro-heroes">🧕 🐿️ 🐆</div>
+    <div class="intro-title">Petualangan Dimulai!</div>
+    <div class="intro-desc">
+      Bantu <b>Miss Minette</b>, <b>Kapi</b>, dan <b>Puru</b> melawan Monster Mikroplastik!
+      Jawab 10 pertanyaan dengan benar untuk melemahkan monster.
+      <br><br>
+      <b>Jawaban benar</b> = Monster mengecil 💪<br>
+      <b>Jawaban salah</b> = Monster membesar 😱
+    </div>
+    <div class="intro-features">
+      <div class="feature-chip"><span class="icon">📖</span>Reading</div>
+      <div class="feature-chip"><span class="icon">🎮</span>Gaming</div>
+      <div class="feature-chip"><span class="icon">🏆</span>Reward</div>
+    </div>
+    <button class="btn btn-primary" onclick="startGame()">🚀 Mulai Petualangan</button>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="gameScreen" class="game-screen">
+    
+    <!-- HP BARS -->
+    <div class="hp-section">
+      <div class="hp-label">
+        <span class="monster-label">👾 Monster Mikroplastik</span>
+        <span id="monsterHPText">100%</span>
+      </div>
+      <div class="hp-bar">
+        <div id="monsterHP" class="hp-fill monster-fill" style="width: 100%"></div>
+      </div>
+      <div class="hp-label">
+        <span class="hero-label">🧕 Tim Miss Minette</span>
+        <span id="heroHPText">100%</span>
+      </div>
+      <div class="hp-bar">
+        <div id="heroHP" class="hp-fill hero-fill" style="width: 100%"></div>
+      </div>
+    </div>
+
+    <!-- PROGRESS DOTS -->
+    <div class="progress-dots" id="progressDots"></div>
+
+    <!-- CHARACTERS -->
+    <div class="characters">
+      <div class="char miss-minette" id="charMinette">🧕</div>
+      <div class="char kapi" id="charKapi">🐿️</div>
+      <div class="char puru" id="charPuru">🐆</div>
+    </div>
+
+    <!-- MONSTER -->
+    <div class="monster-display">
+      <div class="monster-emoji angry" id="monsterEmoji">👾</div>
+    </div>
+
+    <!-- SCENE/STORY CONTEXT -->
+    <div class="scene-box">
+      <div class="scene-title" id="sceneTitle">📖 SCENE 1</div>
+      <div class="scene-text" id="sceneText">Loading...</div>
+    </div>
+
+    <!-- QUESTION -->
+    <div class="question-box">
+      <div class="question-num" id="questionNum">QUESTION 1 / 10</div>
+      <div class="question-text" id="questionText">Loading...</div>
+      <div class="options" id="optionsContainer"></div>
+    </div>
+
+    <!-- FEEDBACK -->
+    <div class="feedback" id="feedback"></div>
+
+  </div>
+
+  <!-- RESULT SCREEN -->
+  <div id="resultScreen" class="result-screen">
+    <div class="trophy-box">🦧</div>
+    <div class="result-title" id="resultTitle">MISSION ACCOMPLISHED!</div>
+    <div class="result-subtitle" id="resultSubtitle"></div>
+
+    <div class="badge-container">
+      <div class="badge-inner">
+        <div style="font-size: 50px;">🏆</div>
+        <div class="badge-title" id="badgeRank">ORANGUTAN GUARDIAN</div>
+        <div class="badge-subtitle" id="badgeDesc">Ocean Protector Badge</div>
+        <div class="badge-stats" id="badgeStats">Score: 0/10</div>
+      </div>
+    </div>
+
+    <div class="restart-section">
+      <button class="btn btn-gold" onclick="restartGame()">🔄 Main Lagi</button>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    Kubik-Flico Series © 2025 | English Reading Comprehension
+  </div>
+</div>
+
+<!-- THREE.JS for WebGL background -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+/* ============================================
+   1. QUESTION DATA (10 Soal Reading Comprehension)
+   ============================================ */
+const QUESTIONS = [
+  {
+    scene: "SCENE 1",
+    story: "Miss Minette, Kapi, and Puru are enjoying the morning in Sylva River District. The river is so clean and the flowers are so pretty.",
+    question: "Where are Miss Minette, Kapi, and Puru enjoying their morning?",
+    options: [
+      "In the forest near the mountains",
+      "In Sylva River District",
+      "At the Equatora Gate market",
+      "Inside a fish's stomach"
+    ],
+    correct: 1
+  },
+  {
+    scene: "SCENE 2",
+    story: "A fish jumps out of the river. It looks weak and needs help. The fish says, 'Please... help us... We are sick...'",
+    question: "What happens to the fish in Scene 2?",
+    options: [
+      "It plays happily with Miss Minette",
+      "It jumps out of the river and looks weak",
+      "It swims away to another river",
+      "It transforms into a monster"
+    ],
+    correct: 1
+  },
+  {
+    scene: "SCENE 4",
+    story: "A tiny blue butterfly appears. It is a Magic Forest Butterfly. The butterfly gives Miss Minette a glowing leaf.",
+    question: "What does the Magic Forest Butterfly give to Miss Minette?",
+    options: [
+      "A magic wand",
+      "A glowing leaf",
+      "A plastic bottle",
+      "A golden key"
+    ],
+    correct: 1
+  },
+  {
+    scene: "SCENE 6",
+    story: "The fish opens its mouth. The three friends carefully enter. They begin an amazing journey inside the fish.",
+    question: "Why do Miss Minette and her friends enter the fish's mouth?",
+    options: [
+      "To hide from the monster",
+      "To begin a journey inside the fish",
+      "To find treasure",
+      "To escape the river"
+    ],
+    correct: 1
+  },
+  {
+    scene: "SCENE 10",
+    story: "A wise Turtle Spirit appears. 'These are microplastics. They are tiny pieces of plastic. They are smaller than rice.'",
+    question: "According to the Turtle Spirit, what are microplastics?",
+    options: [
+      "Large pieces of metal",
+      "Tiny pieces of plastic smaller than rice",
+      "Colorful fish food",
+      "Special kinds of seaweed"
+    ],
+    correct: 1
+  },
+  {
+    scene: "SCENE 13",
+    story: "The Turtle Spirit explains: 'Sunlight, rain, wind, and water break plastic into tiny pieces.'",
+    question: "What natural elements break plastic into tiny pieces?",
+    options: [
+      "Fire, ice, and snow",
+      "Sunlight, rain, wind, and water",
+      "Animals and plants",
+      "Magic and spells"
+    ],
+    correct: 1
+  },
+  {
+    scene: "SCENE 14",
+    story: "The tiny pieces float in rivers. Fish think they are food. They eat them.",
+    question: "Why do fish eat the microplastics?",
+    options: [
+      "Because they taste delicious",
+      "Because fish think they are food",
+      "Because the Turtle Spirit told them to",
+      "Because they are colorful and shiny"
+    ],
+    correct: 1
+  },
+  {
+    scene: "SCENE 17",
+    story: "The Microplastic Monster shouts, 'I grow bigger every day! People throw away more plastic!'",
+    question: "What makes the Microplastic Monster grow bigger?",
+    options: [
+      "Sunlight and rain",
+      "People throwing away more plastic",
+      "Fish eating healthy food",
+      "Miss Minette's magic"
+    ],
+    correct: 1
+  },
+  {
+    scene: "SCENE 19",
+    story: "Miss Minette says, 'We cannot fight with swords. We must fight with knowledge.'",
+    question: "What does Miss Minette say they must fight with?",
+    options: [
+      "Swords and shields",
+      "Knowledge",
+      "Magic spells",
+      "Bigger monsters"
+    ],
+    correct: 1
+  },
+  {
+    scene: "SCENE 27",
+    story: "Miss Minette teaches everyone: 'Use a reusable bottle. Use a reusable bag. Throw trash into the bin. Reduce single-use plastic.'",
+    question: "Which is NOT mentioned as a way to reduce microplastics?",
+    options: [
+      "Use a reusable bottle",
+      "Use a reusable bag",
+      "Throw trash into the bin",
+      "Burn all plastic waste in the river"
+    ],
+    correct: 3
+  }
+];
+
+/* ============================================
+   2. GAME STATE
+   ============================================ */
+let gameState = {
+  currentQuestion: 0,
+  monsterHP: 100,
+  heroHP: 100,
+  score: 0,
+  answers: [],
+  startTime: null,
+  playerName: "Student"
+};
+
+/* ============================================
+   3. WEBGL BACKGROUND (Three.js)
+   ============================================ */
+let scene, camera, renderer, particles;
+
+function initWebGL() {
+  const canvas = document.getElementById('webgl-bg');
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.z = 5;
+
+  renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  // Create floating particles (representing microplastics)
+  const geometry = new THREE.BufferGeometry();
+  const count = 400;
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+
+  const palette = [
+    new THREE.Color(0x4d96ff),
+    new THREE.Color(0x6bcb77),
+    new THREE.Color(0xff6b9d),
+    new THREE.Color(0xffd93d),
+    new THREE.Color(0x8b5cf6)
+  ];
+
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * 15;
+    positions[i * 3 + 1] = (Math.random() - 0.5) * 15;
+    positions[i * 3 + 2] = (Math.random() - 0.5) * 15;
+
+    const c = palette[Math.floor(Math.random() * palette.length)];
+    colors[i * 3] = c.r;
+    colors[i * 3 + 1] = c.g;
+    colors[i * 3 + 2] = c.b;
+  }
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const material = new THREE.PointsMaterial({
+    size: 0.08,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.8,
+    sizeAttenuation: true
+  });
+
+  particles = new THREE.Points(geometry, material);
+  scene.add(particles);
+
+  animate();
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  if (particles) {
+    particles.rotation.y += 0.0008;
+    particles.rotation.x += 0.0003;
+  }
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  if (camera && renderer) {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+});
+
+/* ============================================
+   4. GAME FUNCTIONS
+   ============================================ */
+function startGame() {
+  document.getElementById('introScreen').classList.add('hide');
+  document.getElementById('gameScreen').classList.add('show');
+  document.getElementById('resultScreen').classList.remove('show');
+
+  gameState = {
+    currentQuestion: 0,
+    monsterHP: 100,
+    heroHP: 100,
+    score: 0,
+    answers: [],
+    startTime: Date.now(),
+    playerName: "Student"
+  };
+
+  renderProgressDots();
+  loadQuestion();
+}
+
+function renderProgressDots() {
+  const container = document.getElementById('progressDots');
+  container.innerHTML = '';
+  for (let i = 0; i < QUESTIONS.length; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'dot';
+    if (i === gameState.currentQuestion) dot.classList.add('active');
+    if (gameState.answers[i] === true) dot.classList.add('correct');
+    if (gameState.answers[i] === false) dot.classList.add('wrong');
+    container.appendChild(dot);
+  }
+}
+
+function loadQuestion() {
+  const q = QUESTIONS[gameState.currentQuestion];
+
+  document.getElementById('sceneTitle').textContent = '📖 ' + q.scene;
+  document.getElementById('sceneText').textContent = q.story;
+  document.getElementById('questionNum').textContent = 
+    `QUESTION ${gameState.currentQuestion + 1} / ${QUESTIONS.length}`;
+  document.getElementById('questionText').textContent = q.question;
+
+  const optionsContainer = document.getElementById('optionsContainer');
+  optionsContainer.innerHTML = '';
+
+  const labels = ['A', 'B', 'C', 'D'];
+  q.options.forEach((opt, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.innerHTML = `<span class="opt-label">${labels[idx]}</span><span>${opt}</span>`;
+    btn.onclick = () => selectAnswer(idx, btn);
+    optionsContainer.appendChild(btn);
+  });
+
+  // Reset feedback
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback';
+  fb.textContent = '';
+
+  updateHPBars();
+  renderProgressDots();
+}
+
+function selectAnswer(selectedIdx, btn) {
+  const q = QUESTIONS[gameState.currentQuestion];
+  const isCorrect = selectedIdx === q.correct;
+
+  // Disable all options
+  document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+
+  // Mark correct/wrong
+  const allBtns = document.querySelectorAll('.option-btn');
+  allBtns[q.correct].classList.add('correct');
+  if (!isCorrect) btn.classList.add('wrong');
+
+  // Record answer
+  gameState.answers[gameState.currentQuestion] = isCorrect;
+
+  // Update HP
+  if (isCorrect) {
+    gameState.score++;
+    gameState.monsterHP = Math.max(0, gameState.monsterHP - 10);
+    gameState.heroHP = Math.min(100, gameState.heroHP + 2);
+    animateCharacters('happy');
+    shrinkMonster();
+    showFeedback(true, q);
+  } else {
+    gameState.monsterHP = Math.min(150, gameState.monsterHP + 10);
+    gameState.heroHP = Math.max(0, gameState.heroHP - 10);
+    animateCharacters('shake');
+    growMonster();
+    showFeedback(false, q);
+  }
+
+  updateHPBars();
+  renderProgressDots();
+
+  // Next question after delay
+  setTimeout(() => {
+    gameState.currentQuestion++;
+    if (gameState.currentQuestion < QUESTIONS.length) {
+      loadQuestion();
+    } else {
+      showResult();
+    }
+  }, 2200);
+}
+
+function showFeedback(isCorrect, q) {
+  const fb = document.getElementById('feedback');
+  if (isCorrect) {
+    fb.className = 'feedback correct show';
+    fb.innerHTML = `✅ <b>Benar!</b> Monster mikroplastik melemah! <br><small>${q.options[q.correct]}</small>`;
+  } else {
+    fb.className = 'feedback wrong show';
+    fb.innerHTML = `❌ <b>Salah!</b> Monster bertambah besar! <br><small>Jawaban benar: <b>${q.options[q.correct]}</b></small>`;
+  }
+}
+
+function updateHPBars() {
+  const monsterPct = Math.min(100, (gameState.monsterHP / 100) * 100);
+  const heroPct = Math.max(0, gameState.heroHP);
+
+  document.getElementById('monsterHP').style.width = monsterPct + '%';
+  document.getElementById('heroHP').style.width = heroPct + '%';
+  document.getElementById('monsterHPText').textContent = Math.round(monsterPct) + '%';
+  document.getElementById('heroHPText').textContent = Math.round(heroPct) + '%';
+}
+
+function animateCharacters(type) {
+  const chars = ['charMinette', 'charKapi', 'charPuru'];
+  chars.forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.remove('shake', 'happy');
+    void el.offsetWidth; // trigger reflow
+    el.classList.add(type);
+  });
+}
+
+function shrinkMonster() {
+  const monster = document.getElementById('monsterEmoji');
+  const currentSize = parseFloat(window.getComputedStyle(monster).fontSize);
+  const newSize = Math.max(30, currentSize - 7);
+  monster.style.fontSize = newSize + 'px';
+  monster.style
